@@ -14,41 +14,6 @@ Pain Point: Surge patterns in the data were only visible retrospectively. By the
 Solution: An n8n pipeline that runs every 6 hours, evaluates the 3-day rolling average of national new cases against a configurable threshold (default: 50,000 cases/day), and only sends an alert email when the threshold is breached. The Groq API enriches the alert with AI-generated recommended actions tailored to the detected surge magnitude.
 
 Workflow 1 - Covid-19 situation report
-┌────────────────┐     ┌──────────────────────┐     ┌───────────────────────┐
-│  Schedule      │     │  Read/Write Files    │     │  Extract from File    │
-│  Trigger       │────>│  from Disk           │────>│  (XLSX)               │
-│                │     │  Read covid_summary  │     │  Parse rows → JSON    │
-│  Every 24h     │     │  .xlsx from disk     │     │  array                │
-│  @ 08:00 AM    │     │                      │     │                       │
-└────────────────┘     └──────────────────────┘     └───────────┬───────────┘
-                                                                 │
-                                                                 ▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│  Code in JavaScript                                                        │
-│  • Sum Confirmed, Deaths, Recovered across all state rows                  │
-│  • Identify most affected state (max Confirmed)                            │
-│  • Calculate CFR = Deaths / Confirmed × 100                                │
-│  • Calculate Recovery Rate = Recovered / Confirmed × 100                   │
-│  • Build structured prompt string for Groq LLM                             │
-└──────────────────────────────────────┬─────────────────────────────────────┘
-                                       │
-                                       ▼
-┌──────────────────────────────────────────────────┐
-│  HTTP Request                                    │
-│  POST https://api.groq.com/openai/v1/chat/       │
-│  completions                                     │
-│  Model: llama-3.3-70b-versatile                          │
-│  Input: structured COVID stats prompt            │
-│  Output: AI-generated situation report text      │
-└──────────────────────────┬───────────────────────┘
-                           │
-                           ▼
-┌──────────────────────────────────────────────────┐
-│  Send a Message (Gmail)                          │
-│  To: team-da04@example.com                       │
-│  Subject: COVID-19 Situation Report – {date}     │
-│  Body: AI report + key statistics footer         │
-└──────────────────────────────────────────────────┘
 
 1. Schedule Trigger : Fires the workflow every 24 hours at 08:00 AM IST. No manual execution needed.
 2. Read/Write Files from DiskFile SystemReads the covid_summary.xlsx file from the configured disk path as a binary buffer.
@@ -58,47 +23,6 @@ Workflow 1 - Covid-19 situation report
 6. Send a Message – GmailGmailSends the AI-generated report + statistics footer to the configured recipient list. Subject auto-includes today's date.
 
 workflow 2 - Covid Early warning system
-┌────────────────┐     ┌──────────────────────┐     ┌───────────────────────┐
-│  Schedule      │     │  Read/Write Files    │     │  Extract from File    │
-│  Trigger       │────>│  from Disk           │────>│  (XLSX)               │
-│                │     │  Read covid_summary  │     │  Parse rows → JSON    │
-│  Every 6h      │     │  .xlsx from disk     │     │  array                │
-└────────────────┘     └──────────────────────┘     └───────────┬───────────┘
-                                                                 │
-                                                                 ▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│  Code in JavaScript – 3-Day Alert Logic                                    │
-│  • Sort all records by date descending                                     │
-│  • Extract the 3 most recent unique dates                                  │
-│  • Aggregate national new cases per day across all states                  │
-│  • Compute 3-day moving average = (Day1 + Day2 + Day3) / 3                 │
-│  • Compare against ALERT_THRESHOLD (default: 50,000 cases/day)             │
-│  • Return: { alert: true/false, movingAvg, trend, dailyTotals, prompt }    │
-└──────────────────────────────────────┬─────────────────────────────────────┘
-                                       │
-                                       ▼
-                          ┌────────────────────────┐
-                          │  IF Condition           │
-                          │  alert === true ?       │
-                          └──────────┬──────────────┘
-                                     │
-                   ┌─────────────────┴────────────────────┐
-                   │ TRUE                                  │ FALSE
-                   ▼                                       ▼
-    ┌──────────────────────────────┐       ┌──────────────────────────────┐
-    │  HTTP Request – Groq API     │       │  No Operation                │
-    │  POST api.groq.com           │       │  Workflow ends silently.     │
-    │  Input: surge prompt         │       │  No email sent.              │
-    │  Output: AI alert brief      │       │  No alert fatigue.           │
-    └──────────────┬───────────────┘       └──────────────────────────────┘
-                   │
-                   ▼
-    ┌──────────────────────────────┐
-    │  Send Alert Email – Gmail    │
-    │  Subject: :warning: COVID ALERT –   │
-    │  Surge Detected on {date}    │
-    │  Body: AI brief + stats      │
-    └──────────────────────────────┘
     
 1. Schedule Trigger : Fires every 6 hours for near-real-time monitoring. Configurable to any interval.
 2. Read/Write Files from DiskFile SystemReads the latest version of covid_summary.xlsx. Assumes the file is updated regularly with new daily records.
