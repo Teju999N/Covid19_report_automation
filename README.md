@@ -1,6 +1,4 @@
-# Covid19_report_automation
-COVID-19 Data Analysis & Automation Project
-
+# COVID-19 Data Analysis & Automation Project
 Project Overview:
 
 This project focuses on building an end-to-end data pipeline to analyze COVID-19 data using SQL, Power BI, and n8n automation.
