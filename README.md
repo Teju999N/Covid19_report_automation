@@ -40,12 +40,10 @@ Project Workflow:
 - Calculated:
   - Positive Test Rate  
   - Vaccination Rate  
-
 - Classified Risk Levels:
   - High Risk  
   - Medium Risk  
   - Low Risk  
-
 - Exported cleaned dataset for visualization  
 
 Power BI Dashboard:
